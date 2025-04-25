@@ -37,3 +37,7 @@ A token indexer is like Google Search for blockchain tokens — it continuously 
 1. Install dependencies by running `npm install`
 2. Start application by running `npm run dev`
 
+
+How it works
+
+<video controls src="erc20.gif.mp4" title="ERC20"></video>
