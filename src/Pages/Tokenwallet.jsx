@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Power, Grid, Clock, ArrowUp, Home, PieChart, Wallet, User, Plus, X, ChevronDown, Loader } from 'lucide-react';
-import { Center, Flex, Box, Image } from '@chakra-ui/react';
+import { Center, Flex, Box } from '@chakra-ui/react';
 import { Alchemy, Network, Utils } from 'alchemy-sdk';
 
 const TokenWallet = ({ initialData = null }) => {
@@ -27,6 +27,97 @@ const TokenWallet = ({ initialData = null }) => {
   const [tokenBalances, setTokenBalances] = useState([]);
   const [tokenMetadata, setTokenMetadata] = useState([]);
   const [hasQueried, setHasQueried] = useState(false);
+
+  // Default tokens with mock data
+  const defaultTokens = [
+    {
+      id: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', // ETH WETH contract
+      name: 'ETH',
+      fullName: 'Ethereum',
+      balance: '2.5',
+      valueUsd: 4500,
+      change: '+2.34',
+      color: '#627EEA',
+      symbol: 'ETH',
+      logo: 'https://cryptologos.cc/logos/ethereum-eth-logo.png'
+    },
+    {
+      id: '0xB8c77482e45F1F44dE1745F52C74426C631bDD52', // BNB on Ethereum
+      name: 'BNB',
+      fullName: 'Binance Coin',
+      balance: '10.75',
+      valueUsd: 650,
+      change: '-1.28',
+      color: '#F3BA2F',
+      symbol: 'BNB',
+      logo: 'https://cryptologos.cc/logos/bnb-bnb-logo.png'
+    },
+    {
+      id: '0x888888888889388a3d9a79ae4fa870e9a279e9a5', // SOL on Ethereum
+      name: 'SOL',
+      fullName: 'Solana',
+      balance: '45.32',
+      valueUsd: 150,
+      change: '+3.67',
+      color: '#14F195',
+      symbol: 'SOL',
+      logo: 'https://cryptologos.cc/logos/solana-sol-logo.png'
+    },
+    {
+      id: '0xdac17f958d2ee523a2206206994597c13d831ec7', // Tether USDT
+      name: 'USDT',
+      fullName: 'Tether USD',
+      balance: '1500.00',
+      valueUsd: 1500,
+      change: '+0.01',
+      color: '#26A17B',
+      symbol: 'USDT',
+      logo: 'https://cryptologos.cc/logos/tether-usdt-logo.png'
+    }
+  ];
+
+  // Simulate live price updates
+  useEffect(() => {
+    // Only run this effect if we're showing default tokens
+    if (tokens.length === 0 || !hasQueried) {
+      // Initialize tokens with default values
+      setTokens(defaultTokens);
+      
+      // Update total balance from default tokens
+      const total = defaultTokens.reduce((acc, token) => acc + token.valueUsd, 0);
+      setTotalBalance(total);
+
+      // Simulate "live" price updates every 5 seconds
+      const priceUpdateInterval = setInterval(() => {
+        setTokens(prev => prev.map(token => {
+          // Generate random price fluctuation
+          const priceChange = (Math.random() * 2 - 1) * 0.5; // Between -0.5% and +0.5%
+          const newPricePerUnit = token.valueUsd / parseFloat(token.balance) * (1 + priceChange/100);
+          const newValueUsd = parseFloat(token.balance) * newPricePerUnit;
+          
+          // Calculate 24h change with some randomness while preserving trend direction
+          const trendDirection = token.change.startsWith('+') ? 1 : -1;
+          const changeAmount = parseFloat(token.change.replace('+', '').replace('-', ''));
+          const newChange = (changeAmount + (Math.random() * 0.1 - 0.02) * Math.abs(changeAmount)) * trendDirection;
+          
+          return {
+            ...token,
+            valueUsd: newValueUsd,
+            change: (newChange >= 0 ? '+' : '') + newChange.toFixed(2)
+          };
+        }));
+        
+        // Update total balance
+        setTokens(prev => {
+          const total = prev.reduce((acc, token) => acc + token.valueUsd, 0);
+          setTotalBalance(total);
+          return prev;
+        });
+      }, 5000);
+      
+      return () => clearInterval(priceUpdateInterval);
+    }
+  }, [hasQueried]);
 
   // API Key - In a production app, this should be securely managed
   // Here we're assuming it would be injected through environment variables
@@ -141,13 +232,17 @@ const TokenWallet = ({ initialData = null }) => {
           return colors[Math.abs(hash) % colors.length];
         };
         
+        // Mock price data for the fetched tokens
+        const mockPriceUsd = Math.random() * 1000;
+        const mockChange = (Math.random() * 10 - 5).toFixed(2);
+        
         return {
           id: balance.contractAddress,
           name: metadata.symbol || 'UNKNOWN',
           fullName: metadata.name || 'Unknown Token',
           balance: formattedBalance,
-          valueUsd: 0, // Would require price API to get real USD value
-          change: '0.00', // Would require historical price data
+          valueUsd: parseFloat(formattedBalance) * mockPriceUsd, // Mock USD value
+          change: (mockChange >= 0 ? '+' : '') + mockChange, // Mock price change
           color: generateColor(metadata.symbol || 'UNKNOWN'),
           symbol: metadata.symbol || '?',
           logo: metadata.logo
@@ -161,6 +256,11 @@ const TokenWallet = ({ initialData = null }) => {
       
       setTokens(nonZeroTokens);
       setHasQueried(true);
+      
+      // Calculate total balance
+      const total = nonZeroTokens.reduce((acc, token) => acc + token.valueUsd, 0);
+      setTotalBalance(total);
+      
       return nonZeroTokens;
     } catch (error) {
       console.error("Error fetching token data:", error);
@@ -188,9 +288,9 @@ const TokenWallet = ({ initialData = null }) => {
       setAddressSearchOpen(false);
       setAddressInput("");
       
-      // Calculate total balance (would require price API for actual values)
-      // For now, we'll just count the number of tokens
-      setTotalBalance(fetchedTokens.length);
+      // Calculate total balance from fetched tokens
+      const total = fetchedTokens.reduce((acc, token) => acc + token.valueUsd, 0);
+      setTotalBalance(total);
     } catch (error) {
       setAddressSearchError(error.toString());
     } finally {
@@ -236,6 +336,14 @@ const TokenWallet = ({ initialData = null }) => {
     }
   };
 
+  // Format USD value with $ and commas
+  const formatUsd = (value) => {
+    return `$${value.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    })}`;
+  };
+
   return (
     <Box w="100vw">
       <Center>
@@ -248,7 +356,7 @@ const TokenWallet = ({ initialData = null }) => {
             {/* Phone frame simulation */}
             <div>
               {/* Header */}
-              <div className="header d-flex justify-content-between align-items-center px-3 py-2">
+              <div className="header d-flex justify-content-between align-items-center px-2 py-2">
                 {showSearch ? (
                   <div className="input-group">
                     <input 
@@ -325,12 +433,12 @@ const TokenWallet = ({ initialData = null }) => {
                 </div>
                 <div className="d-flex justify-content-between align-items-center">
                   {loading ? (
-                    <div className="placeholder-glow w-50">
+                    <div className="placeholder-glow w-30">
                       <span className="placeholder col-12"></span>
                     </div>
                   ) : (
                     <h3 className="mb-0">
-                      {hasQueried ? `${tokens.length} Tokens Found` : "No Tokens"}
+                      {formatUsd(totalBalance)}
                     </h3>
                   )}
                   <button 
@@ -339,6 +447,9 @@ const TokenWallet = ({ initialData = null }) => {
                   >
                     <Search size={16} />
                   </button>
+                </div>
+                <div className="small text-light mt-1">
+                  {tokens.length} Tokens
                 </div>
               </div>
               
@@ -383,7 +494,7 @@ const TokenWallet = ({ initialData = null }) => {
               </div>
               
               {/* Tabs */}
-              <div className="tabs px-3 pt-3">
+              <div className="tabs px-1 pt-3">
                 <div className="d-flex">
                   <button 
                     className={`btn flex-grow-1 ${activeTab === 'tokens' ? 'border-bottom border-primary text-primary' : 'text-muted'}`}
@@ -407,7 +518,7 @@ const TokenWallet = ({ initialData = null }) => {
               </div>
               
               {/* Token List */}
-              <div className="token-list px-3 py-2" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+              <div className="token-list px-5 py-2" style={{ maxHeight: '250px', overflowY: 'auto' }}>
                 {loading ? (
                   // Loading skeleton
                   Array(3).fill().map((_, i) => (
@@ -427,13 +538,9 @@ const TokenWallet = ({ initialData = null }) => {
                       </div>
                     </div>
                   ))
-                ) : !hasQueried ? (
-                  <div className="text-center py-4 text-muted">
-                    Search for an Ethereum address or ENS name to view its ERC-20 tokens
-                  </div>
                 ) : filteredTokens.length === 0 ? (
                   <div className="text-center py-4 text-muted">
-                    No tokens found for this address or no tokens match your search.
+                    No tokens found or no tokens match your search.
                   </div>
                 ) : (
                   filteredTokens.map((token) => (
@@ -478,7 +585,13 @@ const TokenWallet = ({ initialData = null }) => {
                         </div>
                         <div className="d-flex justify-content-between">
                           <div className="small text-muted">{token.fullName}</div>
-                          <div className="small text-muted">{token.id.substring(0, 6)}...{token.id.substring(token.id.length - 4)}</div>
+                          <div className={`small ${token.change.startsWith('+') ? 'text-success' : 'text-danger'}`}>
+                            {token.change}%
+                          </div>
+                        </div>
+                        <div className="d-flex justify-content-between">
+                          <div className="small text-muted">{formatUsd(token.valueUsd)}</div>
+                          <div className="small text-muted">{token.id.substring(0, 4)}...{token.id.substring(token.id.length - 4)}</div>
                         </div>
                       </div>
                     </div>
@@ -628,56 +741,23 @@ const TokenWallet = ({ initialData = null }) => {
                       >
                         {addressSearching ? (
                           <span className="d-flex align-items-center justify-content-center">
-                            <Loader size={16} className="me-2 spin" /> 
-                            {isResolvingENS ? 'Resolving ENS...' : 'Searching...'}
-                          </span>
-                        ) : 'Search'}
-                      </button>
-                    </div>
-                  </form>
-                  <div className="mt-3">
-                    <p className="mb-1 fw-bold">Example inputs to try:</p>
-                    <ul className="small">
-                      <li className="mb-1">
-                        <button 
-                          className="btn btn-sm btn-link p-0 text-decoration-none"
-                          onClick={() => {
-                            setAddressInput("vitalik.eth");
-                          }}
-                        >
-                          vitalik.eth
-                        </button>
-                      </li>
-                      <li className="mb-1">
-                        <button 
-                          className="btn btn-sm btn-link p-0 text-decoration-none"
-                          onClick={() => {
-                            setAddressInput("0x71c7656ec7ab88b098defb751b7401b5f6d8976f");
-                          }}
-                        >
-                          0x71c7656ec7ab88b098defb751b7401b5f6d8976f
-                        </button>
-                      </li>
-                      <li>
-                        <button 
-                          className="btn btn-sm btn-link p-0 text-decoration-none"
-                          onClick={() => {
-                            setAddressInput("0xf977814e90da44bfa03b6295a0616a897441acec");
-                          }}
-                        >
-                          0xf977814e90da44bfa03b6295a0616a897441acec
-                        </button>
-                      </li>
-                    </ul>
+                          <Loader size={16} className="me-2" /> Searching
+                        </span>
+                      ) : (
+                        "Search"
+                      )}
+                    </button>
                   </div>
-                </div>
+                </form>
               </div>
-            )}
-          </div>
-        </Flex>
-      </Center>
-    </Box>
-  );
+            </div>
+          )}
+          
+        </div>
+      </Flex>
+    </Center>
+  </Box>
+);
 };
 
 export default TokenWallet;
