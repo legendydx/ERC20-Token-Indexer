@@ -38,5 +38,5 @@ A token indexer is like Google Search for blockchain tokens — it continuously 
 2. Start application by running `npm run dev`
 
 
-How it works
+How it works? Watch the erc20.gif
 ![How to use the ERC-20 token indexer](ERC20.gif)
