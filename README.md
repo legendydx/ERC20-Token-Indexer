@@ -40,4 +40,4 @@ A token indexer is like Google Search for blockchain tokens — it continuously 
 
 How it works
 
-<video controls src="erc20.gif.mp4" title="ERC20"></video>
+<video controls src="erc20.mp4" title="Title"></video>
